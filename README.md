@@ -1,13 +1,9 @@
-## What is the project about?
+## Containers
 
-This project presents my implementation of containers from the C++ standard library.
-
-## What containers are there?
-
-Containers:
 - list;
 - vector;
 
-## Usage
+## Differences from standard containers
 
-No different in use from standard containers.
+- not all functions are implemented;
+- does not support classes without a default constructor;
