@@ -16,7 +16,8 @@ template <typename T>
 vector<T>::vector(size_type n) {
   capacity_ = size_ = n;
   if (size_ == 0) return;
-  ptr_ = new value_type[size_ + 1];
+  ptr_ = static_cast<value_type *>(operator new[](sizeof(value_type) *
+                                                  (size_ + 1)));
 }
 
 template <typename T>
@@ -25,10 +26,11 @@ vector<T>::vector(std::initializer_list<value_type> const &items) {
   if (size_ == 0) return;
 
   const value_type *list_ptr = items.begin();
-  ptr_ = new value_type[size_ + 1];
+  ptr_ = static_cast<value_type *>(operator new[](sizeof(value_type) *
+                                                  (size_ + 1)));
 
   for (size_type i = 0; i < size_; ++i) {
-    ptr_[i] = list_ptr[i];
+    new (&ptr_[i]) T(list_ptr[i]);
   }
 }
 
@@ -44,13 +46,18 @@ vector<T>::vector(vector &&other) {
 
 template <typename T>
 vector<T>::~vector() {
-  if (ptr_) delete[] ptr_;
+  if (ptr_) {
+    for (size_type i = 0; i < size_; ++i) {
+      ptr_[i].~T();
+    }
+    operator delete[](ptr_);
+  };
 }
 
 template <typename T>
 vector<T> &vector<T>::operator=(const vector &other) {
   if (ptr_ == other.ptr_) return *this;
-  if (ptr_) delete[] ptr_;
+  if (ptr_) operator delete[](ptr_);
   CopyVector(other);
   return *this;
 }
@@ -58,7 +65,7 @@ vector<T> &vector<T>::operator=(const vector &other) {
 template <typename T>
 vector<T> &vector<T>::operator=(vector &&other) {
   if (ptr_ == other.ptr_) return *this;
-  if (ptr_) delete[] ptr_;
+  if (ptr_) operator delete[](ptr_);
   MoveVector(std::move(other));
   return *this;
 }
@@ -68,9 +75,10 @@ void vector<T>::CopyVector(const vector &other) {
   capacity_ = other.capacity_;
   size_ = other.size_;
 
-  ptr_ = new value_type[capacity_ + 1];
+  ptr_ = static_cast<value_type *>(operator new[](sizeof(value_type) *
+                                                  (size_ + 1)));
   for (size_type i = 0; i < size_; ++i) {
-    ptr_[i] = other.ptr_[i];
+    new (&ptr_[i]) T(other.ptr_[i]);
   }
 }
 
@@ -183,11 +191,12 @@ void vector<T>::shrink_to_fit() {
 template <typename T>
 void vector<T>::Resize(size_type size) {
   capacity_ = size;
-  value_type *new_ptr = new value_type[size + 1];
+  value_type *new_ptr = ptr_ = static_cast<value_type *>(operator new[](
+      sizeof(value_type) * (size + 1)));
   for (size_type i = 0; i < size_; ++i) {
-    new_ptr[i] = ptr_[i];
+    new (&new_ptr[i]) T(ptr_[i]);
   }
-  delete[] ptr_;
+  operator delete[](ptr_);
   ptr_ = std::exchange(new_ptr, nullptr);
 }
 
@@ -202,7 +211,9 @@ typename vector<T>::iterator vector<T>::insert(const_iterator pos,
   if (empty()) {
     size_ = 1;
     capacity_ = capacity_ > size_ ? capacity_ : size_;
-    if (ptr_ == nullptr) ptr_ = new value_type[size_ + 1];
+    if (ptr_ == nullptr)
+      ptr_ = static_cast<value_type *>(operator new[](sizeof(value_type) *
+                                                      (size_ + 1)));
     *ptr_ = value;
     return iterator(ptr_);
   }
